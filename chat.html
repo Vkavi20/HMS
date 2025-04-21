@@ -1,0 +1,98 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Community Chat - Hostel Management</title>
+  <link href="https://fonts.googleapis.com/css2?family=Roboto&display=swap" rel="stylesheet" />
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" />
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    body {
+      font-family: 'Roboto', sans-serif;
+    }
+    #chatMessages {
+      height: 400px;
+      overflow-y: auto;
+      border: 1px solid #ccc;
+      padding: 10px;
+      background: #f9f9f9;
+    }
+  </style>
+</head>
+<body class="bg-gray-100 min-h-screen flex flex-col">
+  <header class="bg-teal-600 text-white p-4 flex justify-between items-center">
+    <h1 class="text-xl font-bold">Community Chat</h1>
+    <button id="logoutBtn" class="hover:underline">Logout</button>
+  </header>
+  <main class="flex-grow p-6 max-w-4xl mx-auto bg-white rounded shadow mt-6 flex flex-col">
+    <div id="chatMessages" class="mb-4 flex-grow overflow-auto"></div>
+    <form id="chatForm" class="flex space-x-2">
+      <input type="text" id="chatInput" placeholder="Type your message..." class="flex-grow border border-gray-300 rounded px-3 py-2" required />
+      <button type="submit" class="bg-teal-600 text-white px-4 py-2 rounded hover:bg-teal-700 transition">Send</button>
+    </form>
+  </main>
+
+  <script>
+    const token = localStorage.getItem('token');
+    const user = JSON.parse(localStorage.getItem('user'));
+    if (!token || !user) {
+      window.location.href = 'login.html';
+    }
+
+    const chatMessages = document.getElementById('chatMessages');
+    const chatForm = document.getElementById('chatForm');
+    const chatInput = document.getElementById('chatInput');
+
+    async function loadMessages() {
+      try {
+        const res = await fetch('/api/chat/general', {
+          headers: { Authorization: 'Bearer ' + token },
+        });
+        if (!res.ok) throw new Error('Failed to load messages');
+        const messages = await res.json();
+        chatMessages.innerHTML = '';
+        messages.forEach(msg => {
+          const div = document.createElement('div');
+          div.className = 'mb-2';
+          div.innerHTML = `<strong>${msg.sender.name}:</strong> ${msg.message}`;
+          chatMessages.appendChild(div);
+        });
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      } catch (err) {
+        alert(err.message);
+      }
+    }
+
+    chatForm.addEventListener('submit', async (e) => {
+      e.preventDefault();
+      const message = chatInput.value.trim();
+      if (!message) return;
+      try {
+        const res = await fetch('/api/chat', {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: 'Bearer ' + token,
+          },
+          body: JSON.stringify({ senderId: user.id, message, room: 'general' }),
+        });
+        if (!res.ok) throw new Error('Failed to send message');
+        chatInput.value = '';
+        loadMessages();
+      } catch (err) {
+        alert(err.message);
+      }
+    });
+
+    document.getElementById('logoutBtn').addEventListener('click', () => {
+      localStorage.removeItem('token');
+      localStorage.removeItem('user');
+      window.location.href = 'login.html';
+    });
+
+    loadMessages();
+    setInterval(loadMessages, 5000);
+  </script>
+</body>
+</html>
